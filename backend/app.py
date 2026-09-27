@@ -86,3 +86,64 @@ print(question)
 print("\nANSWER")
 print("=" * 60)
 print(answer)
+
+# -----------------------------
+# JOB DESCRIPTION ANALYSIS
+# -----------------------------
+
+jd_path = "../data/job_description.txt"
+
+with open(jd_path, "r", encoding="utf-8") as file:
+    job_description = file.read()
+
+print("\nJOB DESCRIPTION")
+print("=" * 60)
+print(job_description)
+
+# -----------------------------
+# SKILL GAP ANALYSIS
+# -----------------------------
+
+analysis_prompt = f"""
+You are an AI placement assistant.
+
+Compare the candidate's resume with the job description.
+
+Resume context:
+----------------
+{context}
+----------------
+
+Job Description:
+----------------
+{job_description}
+----------------
+
+Analyze the candidate against the job description.
+
+Give the result in exactly these sections:
+
+1. MATCHING SKILLS
+List the skills from the job description that are clearly present
+in the resume.
+
+2. MISSING SKILLS
+List the important skills from the job description that are not
+clearly present in the resume.
+
+3. RELEVANT EXPERIENCE
+Mention projects, technologies, or experience from the resume
+that are relevant to this job.
+
+4. PREPARATION PRIORITIES
+Suggest the most useful topics the candidate should learn or
+practice based on the missing skills.
+
+Do not invent skills or experience that are not present in the resume.
+"""
+
+analysis = llm.invoke(analysis_prompt)
+
+print("\nSKILL GAP ANALYSIS")
+print("=" * 60)
+print(analysis)
