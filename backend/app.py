@@ -105,9 +105,79 @@ print(job_description)
 # -----------------------------
 
 analysis_prompt = f"""
-You are an AI placement assistant.
+You are an AI placement assistant performing a strict resume-to-job comparison.
 
-Compare the candidate's resume with the job description.
+Use ONLY the information explicitly present in the resume context.
+
+RESUME CONTEXT:
+----------------
+{context}
+----------------
+
+JOB DESCRIPTION:
+----------------
+{job_description}
+----------------
+
+Rules:
+
+1. MATCHING SKILLS
+List only skills/requirements from the job description for which
+there is clear evidence in the resume.
+
+2. MISSING SKILLS
+List only skills/requirements explicitly mentioned in the job
+description for which there is NO clear evidence in the resume.
+
+3. RELEVANT EXPERIENCE
+List only projects, technologies, education, or experience
+explicitly mentioned in the resume that relate to the job.
+
+4. PREPARATION PRIORITIES
+Recommend learning topics ONLY from the missing skills.
+
+IMPORTANT:
+- Do not infer skills from unrelated experience.
+- Do not assume that mentioning a library means expertise in it.
+- Do not treat a preferred requirement differently from a required
+  requirement; simply label it as "(Preferred)" when appropriate.
+- Never put the same skill in both MATCHING and MISSING.
+- Do not invent information.
+- If evidence is uncertain, do not classify the skill as matching.
+
+Return exactly these sections:
+
+MATCHING SKILLS
+MISSING SKILLS
+RELEVANT EXPERIENCE
+PREPARATION PRIORITIES
+"""
+analysis = llm.invoke(analysis_prompt)
+
+print("\nSKILL GAP ANALYSIS")
+print("=" * 60)
+print(analysis)
+
+# -----------------------------
+# GROUNDED INTERVIEW QUESTION GENERATOR
+# -----------------------------
+
+interview_prompt = f"""
+You are an AI placement interview coach.
+
+Your job is to generate interview questions using ONLY the
+information explicitly present in the provided resume context
+and job description.
+
+IMPORTANT RULES:
+- Never claim that the candidate has a skill unless it appears
+  explicitly in the resume context.
+- Never claim that the candidate has experience with a technology
+  unless it appears explicitly in the resume context.
+- Do not invent projects, achievements, contributions, or experience.
+- For resume-based questions, use only evidence from the resume context.
+- For skill-gap questions, use only skills that appear in the
+  job description but are NOT clearly present in the resume context.
 
 Resume context:
 ----------------
@@ -119,31 +189,29 @@ Job Description:
 {job_description}
 ----------------
 
-Analyze the candidate against the job description.
+Generate exactly 10 questions.
 
-Give the result in exactly these sections:
+SECTION 1 — RESUME & PROJECT QUESTIONS
+Generate 3 questions based ONLY on projects, technologies,
+education, or experience explicitly mentioned in the resume context.
 
-1. MATCHING SKILLS
-List the skills from the job description that are clearly present
-in the resume.
+SECTION 2 — TECHNICAL QUESTIONS
+Generate 4 technical questions based on the requirements
+in the job description.
 
-2. MISSING SKILLS
-List the important skills from the job description that are not
-clearly present in the resume.
+SECTION 3 — SKILL GAP QUESTIONS
+Generate 3 questions about important job requirements that
+are NOT clearly demonstrated in the resume context.
 
-3. RELEVANT EXPERIENCE
-Mention projects, technologies, or experience from the resume
-that are relevant to this job.
+Before generating each question, verify that it follows
+the rules above.
 
-4. PREPARATION PRIORITIES
-Suggest the most useful topics the candidate should learn or
-practice based on the missing skills.
-
-Do not invent skills or experience that are not present in the resume.
+Do not include answers.
+Do not make assumptions about the candidate.
 """
 
-analysis = llm.invoke(analysis_prompt)
+interview_questions = llm.invoke(interview_prompt)
 
-print("\nSKILL GAP ANALYSIS")
+print("\nGROUNDED INTERVIEW QUESTIONS")
 print("=" * 60)
-print(analysis)
+print(interview_questions)
