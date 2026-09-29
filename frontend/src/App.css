@@ -473,7 +473,7 @@ nav {
   background-clip: text;
   color: transparent;
 
-  animation: shine 20s ease-in-out infinite;;
+  animation: shine 20s ease-in-out infinite;
 }
 
 @keyframes shine {
@@ -828,5 +828,176 @@ textarea::placeholder {
 
   .primary-button {
     width: 100%;
+  }
+}
+/* =============================
+   RESUME UPLOAD
+============================= */
+
+.resume-upload-card {
+  position: relative;
+  width: 100%;
+  margin-bottom: 28px;
+  padding: 24px 26px;
+  box-sizing: border-box;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+
+  background:
+    radial-gradient(
+      circle at 85% 20%,
+      rgba(255, 255, 255, 0.07),
+      transparent 35%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.07),
+      rgba(255, 255, 255, 0.025)
+    );
+
+  backdrop-filter: blur(18px);
+
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.35),
+    inset 0 1px rgba(255, 255, 255, 0.08);
+
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.resume-upload-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.18);
+
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.45),
+    0 0 35px rgba(255, 255, 255, 0.04),
+    inset 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.resume-upload-info {
+  min-width: 0;
+}
+
+.resume-upload-label {
+  display: block;
+  margin-bottom: 8px;
+
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  color: #666;
+}
+
+.resume-upload-info h2 {
+  margin: 0;
+
+  font-size: 18px;
+  font-weight: 700;
+  color: #f5f5f5;
+}
+
+.resume-upload-info p {
+  margin: 7px 0 0;
+
+  font-size: 12px;
+  line-height: 1.5;
+  color: #777;
+}
+
+.resume-upload-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.upload-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 42px;
+  padding: 0 18px;
+
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+
+  background: rgba(255, 255, 255, 0.04);
+  color: #ddd;
+
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  cursor: pointer;
+
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease;
+}
+
+.upload-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.upload-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.resume-upload-actions .primary-button {
+  min-width: 150px;
+}
+
+.upload-success {
+  position: absolute;
+  left: 26px;
+  bottom: -20px;
+
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #aaa;
+}
+
+
+/* =============================
+   RESPONSIVE
+============================= */
+
+@media (max-width: 760px) {
+  .resume-upload-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .resume-upload-actions {
+    width: 100%;
+  }
+
+  .upload-button,
+  .resume-upload-actions .primary-button {
+    flex: 1;
+  }
+
+  .upload-success {
+    position: static;
+    margin-top: -10px;
   }
 }

@@ -15,6 +15,9 @@ function App() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resumeFile, setResumeFile] = useState(null);
+const [resumeUploaded, setResumeUploaded] = useState(false);
+const [uploadingResume, setUploadingResume] = useState(false);
 
   // -----------------------------
   // MOUSE GLOW
@@ -123,6 +126,39 @@ const handleButtonLeave = (e) => {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+    // -----------------------------
+  // RESUME UPLOAD
+  // -----------------------------
+
+  const uploadResume = async () => {
+    if (!resumeFile) return;
+
+    setUploadingResume(true);
+    setError("");
+    setResumeUploaded(false);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", resumeFile);
+
+      const response = await fetch(`${API_URL}/upload-resume`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to upload resume.");
+      }
+
+      setResumeUploaded(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingResume(false);
     }
   };
 
@@ -303,6 +339,52 @@ const handleButtonLeave = (e) => {
             RAG ACTIVE
           </div>
         </header>
+        {/* RESUME UPLOAD */}
+
+<div className="resume-upload-card">
+  <div className="resume-upload-info">
+    <span className="resume-upload-label">PROFILE</span>
+
+    <h2>
+      {resumeUploaded ? "Resume ready" : "Upload your resume"}
+    </h2>
+
+    <p>
+      {resumeUploaded
+        ? `${resumeFile?.name} is ready for AI analysis.`
+        : "Upload your PDF resume to personalize the placement assistant."}
+    </p>
+  </div>
+
+  <div className="resume-upload-actions">
+    <label className="upload-button">
+      Choose PDF
+      <input
+        type="file"
+        accept=".pdf,application/pdf"
+        onChange={(e) => {
+          setResumeFile(e.target.files[0] || null);
+          setResumeUploaded(false);
+          setError("");
+        }}
+      />
+    </label>
+
+    <button
+      className="primary-button"
+      onClick={uploadResume}
+      disabled={!resumeFile || uploadingResume}
+    >
+      {uploadingResume ? "Uploading..." : "Upload Resume →"}
+    </button>
+  </div>
+
+  {resumeUploaded && (
+    <div className="upload-success">
+      ✓ Resume processed successfully
+    </div>
+  )}
+</div>
 
         {/* =============================
             ASK AI
