@@ -1,7 +1,7 @@
 import { useState } from "react";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 function App() {
   const [activeTab, setActiveTab] = useState("ask");
@@ -132,35 +132,36 @@ const handleButtonLeave = (e) => {
   // RESUME UPLOAD
   // -----------------------------
 
-  const uploadResume = async () => {
-    if (!resumeFile) return;
+ const uploadResume = async (file) => {
+  if (!file) return;
 
-    setUploadingResume(true);
-    setError("");
-    setResumeUploaded(false);
+  setResumeFile(file);
+  setUploadingResume(true);
+  setError("");
+  setResumeUploaded(false);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", resumeFile);
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const response = await fetch(`${API_URL}/upload-resume`, {
-        method: "POST",
-        body: formData,
-      });
+    const response = await fetch(`${API_URL}/upload-resume`, {
+      method: "POST",
+      body: formData,
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Unable to upload resume.");
-      }
-
-      setResumeUploaded(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setUploadingResume(false);
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Unable to upload resume.");
     }
-  };
+
+    setResumeUploaded(true);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setUploadingResume(false);
+  }
+};
 
   // -----------------------------
   // JOB MATCH
@@ -346,7 +347,7 @@ const handleButtonLeave = (e) => {
     <span className="resume-upload-label">PROFILE</span>
 
     <h2>
-      {resumeUploaded ? "Resume ready" : "Upload your resume"}
+      {resumeUploaded ? "Resume uploaded ✓" : "Upload your resume"}
     </h2>
 
     <p>
@@ -357,26 +358,25 @@ const handleButtonLeave = (e) => {
   </div>
 
   <div className="resume-upload-actions">
-    <label className="upload-button">
-      Choose PDF
+    <label className="primary-button">
+      {uploadingResume ? "Uploading..." : "Upload Resume →"}
+
       <input
         type="file"
         accept=".pdf,application/pdf"
+        hidden
+        disabled={uploadingResume}
         onChange={(e) => {
-          setResumeFile(e.target.files[0] || null);
-          setResumeUploaded(false);
-          setError("");
+          const file = e.target.files[0];
+
+          if (file) {
+            uploadResume(file);
+          }
+
+          e.target.value = "";
         }}
       />
     </label>
-
-    <button
-      className="primary-button"
-      onClick={uploadResume}
-      disabled={!resumeFile || uploadingResume}
-    >
-      {uploadingResume ? "Uploading..." : "Upload Resume →"}
-    </button>
   </div>
 
   {resumeUploaded && (
