@@ -11,12 +11,7 @@ from qdrant_client import QdrantClient, models
 
 
 app = FastAPI(title="AI Placement Assistant")
-@app.get("/debug")
-def debug():
-    return {
-        "docs_url": app.docs_url,
-        "openapi_url": app.openapi_url
-    }
+
 
 app.add_middleware(
     CORSMiddleware,
