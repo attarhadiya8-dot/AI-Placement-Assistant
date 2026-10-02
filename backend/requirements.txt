@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pypdf
+python-dotenv
+google-genai
+qdrant-client
+onnxruntime
+numpy
