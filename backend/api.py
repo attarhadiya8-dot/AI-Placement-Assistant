@@ -1,19 +1,27 @@
 
-import chromadb
 import os
 from pypdf import PdfReader
 from chromadb.utils import embedding_functions
-from langchain_ollama import OllamaLLM
+from dotenv import load_dotenv
+from google import genai
 from fastapi import FastAPI , UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from qdrant_client import QdrantClient, models
 
 
 app = FastAPI(title="AI Placement Assistant")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,16 +32,33 @@ app.add_middleware(
 # RAG SETUP
 # -----------------------------
 
-client = chromadb.PersistentClient(path="../data/chroma_db")
+load_dotenv()
+qdrant_client = QdrantClient(
+    url=os.getenv("QDRANT_URL"),
+    api_key=os.getenv("QDRANT_API_KEY"),
+    timeout=60
+)
 
 embedding_function = embedding_functions.DefaultEmbeddingFunction()
 
-collection = client.get_collection(
-    name="resume",
-    embedding_function=embedding_function
-)
+QDRANT_COLLECTION = "resume"
+QDRANT_VECTOR_SIZE = 384
 
-llm = OllamaLLM(model="llama3.2:3b")
+try:
+    qdrant_client.create_collection(
+        collection_name=QDRANT_COLLECTION,
+        vectors_config=models.VectorParams(
+            size=QDRANT_VECTOR_SIZE,
+            distance=models.Distance.COSINE
+        )
+    )
+except Exception as e:
+    if "already exists" not in str(e).lower():
+        raise
+
+
+gemini_client = genai.Client()
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 
 # -----------------------------
@@ -60,8 +85,8 @@ async def upload_resume(file: UploadFile = File(...)):
             "message": "Only PDF resumes are supported."
         }
 
+    # Save the uploaded PDF temporarily
     os.makedirs("../data/uploads", exist_ok=True)
-
     file_path = f"../data/uploads/{file.filename}"
 
     with open(file_path, "wb") as buffer:
@@ -69,12 +94,10 @@ async def upload_resume(file: UploadFile = File(...)):
 
     # Extract PDF text
     reader = PdfReader(file_path)
-
     text = ""
 
     for page in reader.pages:
         page_text = page.extract_text()
-
         if page_text:
             text += page_text + "\n"
 
@@ -87,9 +110,7 @@ async def upload_resume(file: UploadFile = File(...)):
     # Split resume into chunks
     chunk_size = 1000
     overlap = 150
-
     chunks = []
-
     start = 0
 
     while start < len(text):
@@ -101,23 +122,41 @@ async def upload_resume(file: UploadFile = File(...)):
 
         start += chunk_size - overlap
 
-    # Create a fresh collection for the uploaded resume
-    try:
-        client.delete_collection("current_resume")
-    except Exception:
-        pass
-
-    resume_collection = client.create_collection(
-        name="current_resume",
-        embedding_function=embedding_function
+    # Remove the previous resume from Qdrant
+    qdrant_client.delete(
+        collection_name=QDRANT_COLLECTION,
+        points_selector=models.FilterSelector(
+            filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="resume_id",
+                        match=models.MatchValue(value="current_resume")
+                    )
+                ]
+            )
+        )
     )
 
-    # Add chunks to ChromaDB
-    ids = [f"resume_chunk_{i}" for i in range(len(chunks))]
+    # Generate embeddings for the resume chunks
+    embeddings = embedding_function(chunks)
 
-    resume_collection.add(
-        documents=chunks,
-        ids=ids
+    # Create Qdrant points
+    points = [
+        models.PointStruct(
+            id=i,
+            vector=embeddings[i],
+            payload={
+                "resume_id": "current_resume",
+                "text": chunks[i]
+            }
+        )
+        for i in range(len(chunks))
+    ]
+
+    # Store the chunks in Qdrant
+    qdrant_client.upsert(
+        collection_name=QDRANT_COLLECTION,
+        points=points
     )
 
     return {
@@ -128,58 +167,36 @@ async def upload_resume(file: UploadFile = File(...)):
         "text_length": len(text)
     }
 
-    if not file.filename.lower().endswith(".pdf"):
-        return {
-            "success": False,
-            "message": "Only PDF resumes are supported."
-        }
-
-    os.makedirs("../data/uploads", exist_ok=True)
-
-    file_path = f"../data/uploads/{file.filename}"
-
-    with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
-
-    reader = PdfReader(file_path)
-
-    text = ""
-
-    for page in reader.pages:
-        page_text = page.extract_text()
-
-        if page_text:
-            text += page_text + "\n"
-
-    if not text.strip():
-        return {
-            "success": False,
-            "message": "Could not extract text from the resume."
-        }
-
-    return {
-        "success": True,
-        "filename": file.filename,
-        "message": "Resume uploaded and text extracted successfully.",
-        "text_length": len(text)
-    }
 # -----------------------------
 # HELPER: RETRIEVE RESUME
 # -----------------------------
 
 def get_resume_context(query, n_results=5):
 
-    current_collection = client.get_collection(
-        name="current_resume",
-        embedding_function=embedding_function
+    # Convert the query into an embedding
+    query_embedding = embedding_function([query])[0]
+
+    # Search the resume chunks stored in Qdrant
+    results = qdrant_client.query_points(
+        collection_name=QDRANT_COLLECTION,
+        query=query_embedding,
+        query_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="resume_id",
+                    match=models.MatchValue(value="current_resume")
+                )
+            ]
+        ),
+        limit=n_results,
+        with_payload=True
     )
 
-    results = current_collection.query(
-        query_texts=[query],
-        n_results=n_results
-    )
-
-    documents = results["documents"][0]
+    documents = [
+        point.payload["text"]
+        for point in results.points
+        if point.payload and "text" in point.payload
+    ]
 
     return "\n\n".join(documents)
 
@@ -222,8 +239,12 @@ Question:
 
 Answer clearly and concisely.
 """
+    response = gemini_client.models.generate_content(
+    model=GEMINI_MODEL,
+    contents=prompt
+)
 
-    answer = llm.invoke(prompt)
+    answer = response.text
 
     return {
         "question": request.question,
@@ -457,8 +478,12 @@ RELEVANT EXPERIENCE
 PREPARATION PRIORITIES
 1. ...
 """
+    response = gemini_client.models.generate_content(
+    model=GEMINI_MODEL,
+    contents=prompt
+)
 
-    analysis = llm.invoke(prompt)
+    analysis = response.text
 
     return {
         "analysis": analysis
@@ -513,10 +538,17 @@ IMPORTANT:
 - Do not claim the candidate has experience with a technology
   unless it appears in the resume context.
 - Do not include answers.
-- Make questions suitable for an AI/ML Engineer internship.
+- Make all questions specifically relevant to the job description.
+- Do not assume the role is AI/ML, software, or any other specific
+  field unless the job description explicitly requires it.
 """
 
-    questions = llm.invoke(prompt)
+    response = gemini_client.models.generate_content(
+    model=GEMINI_MODEL,
+    contents=prompt
+)
+
+    questions = response.text
 
     return {
         "questions": questions
