@@ -1,7 +1,7 @@
 
 import os
 from pypdf import PdfReader
-from chromadb.utils import embedding_functions
+from fastembed import TextEmbedding
 from dotenv import load_dotenv
 from google import genai
 from fastapi import FastAPI , UploadFile, File
@@ -39,7 +39,12 @@ qdrant_client = QdrantClient(
     timeout=60
 )
 
-embedding_function = embedding_functions.DefaultEmbeddingFunction()
+embedding_model = TextEmbedding(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
+
+def embed_texts(texts):
+    return [vector.tolist() for vector in embedding_model.embed(texts)]
 
 QDRANT_COLLECTION = "resume"
 QDRANT_VECTOR_SIZE = 384
@@ -138,7 +143,7 @@ async def upload_resume(file: UploadFile = File(...)):
     )
 
     # Generate embeddings for the resume chunks
-    embeddings = embedding_function(chunks)
+    embeddings = embed_texts(chunks)
 
     # Create Qdrant points
     points = [
@@ -174,7 +179,7 @@ async def upload_resume(file: UploadFile = File(...)):
 def get_resume_context(query, n_results=5):
 
     # Convert the query into an embedding
-    query_embedding = embedding_function([query])[0]
+    query_embedding = embed_texts([query])[0]
 
     # Search the resume chunks stored in Qdrant
     results = qdrant_client.query_points(
